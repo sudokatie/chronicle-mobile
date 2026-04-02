@@ -8,6 +8,7 @@ import {
   PullResult,
   PushResult,
   Author,
+  ConflictState,
 } from '../types';
 
 /**
@@ -137,12 +138,25 @@ function createOnAuth(credentials: GitCredentials) {
 }
 
 /**
+ * Create auth callback based on credential type (HTTP or SSH).
+ */
+function createAuthCallback(credentials: GitCredentials) {
+  return createOnAuth(credentials);
+}
+
+/**
+ * Progress callback type for clone/fetch operations.
+ */
+export type ProgressCallback = (phase: string, loaded: number, total: number | null) => void;
+
+/**
  * Clone a repository.
  */
 export async function clone(
   url: string,
   dir: string,
-  credentials: GitCredentials
+  credentials: GitCredentials,
+  onProgress?: ProgressCallback
 ): Promise<void> {
   // Ensure directory exists
   await FileSystem.makeDirectoryAsync(dir, { intermediates: true });
@@ -155,6 +169,11 @@ export async function clone(
     depth: 1,
     singleBranch: true,
     onAuth: createOnAuth(credentials),
+    onProgress: onProgress
+      ? (progress) => {
+          onProgress(progress.phase, progress.loaded, progress.total ?? null);
+        }
+      : undefined,
   });
 }
 
@@ -391,4 +410,120 @@ export async function setRemote(
   url: string
 ): Promise<void> {
   await git.addRemote({ fs, dir, remote: name, url });
+}
+
+/**
+ * Check if a specific file has been modified on remote since local version.
+ * Used for conflict detection in the editor.
+ */
+export async function checkRemoteModified(
+  dir: string,
+  filepath: string,
+  credentials: GitCredentials
+): Promise<ConflictState> {
+  try {
+    // Fetch latest from remote without merging
+    await git.fetch({
+      fs,
+      http,
+      dir,
+      onAuth: createAuthCallback(credentials),
+    });
+
+    const branch = await git.currentBranch({ fs, dir });
+    if (!branch) {
+      return { hasConflict: false, remoteModified: null, localModified: null };
+    }
+
+    // Get local HEAD commit for the file
+    const localRef = await git.resolveRef({ fs, dir, ref: 'HEAD' });
+    const remoteRef = await git.resolveRef({ fs, dir, ref: `refs/remotes/origin/${branch}` });
+
+    // If same commit, no conflict possible
+    if (localRef === remoteRef) {
+      return { hasConflict: false, remoteModified: null, localModified: null };
+    }
+
+    // Get file OIDs from both commits
+    let localOid: string | null = null;
+    let remoteOid: string | null = null;
+    let localCommitTime: Date | null = null;
+    let remoteCommitTime: Date | null = null;
+
+    try {
+      const localEntry = await git.readTree({
+        fs,
+        dir,
+        oid: localRef,
+        filepath,
+      });
+      localOid = localEntry.tree[0]?.oid || null;
+
+      const localCommit = await git.readCommit({ fs, dir, oid: localRef });
+      localCommitTime = new Date(localCommit.commit.author.timestamp * 1000);
+    } catch {
+      // File doesn't exist in local
+    }
+
+    try {
+      const remoteEntry = await git.readTree({
+        fs,
+        dir,
+        oid: remoteRef,
+        filepath,
+      });
+      remoteOid = remoteEntry.tree[0]?.oid || null;
+
+      const remoteCommit = await git.readCommit({ fs, dir, oid: remoteRef });
+      remoteCommitTime = new Date(remoteCommit.commit.author.timestamp * 1000);
+    } catch {
+      // File doesn't exist in remote
+    }
+
+    // Check if file was modified on remote
+    const hasConflict = localOid !== null && remoteOid !== null && localOid !== remoteOid;
+
+    return {
+      hasConflict,
+      remoteModified: remoteCommitTime,
+      localModified: localCommitTime,
+    };
+  } catch {
+    // Network or other error - assume no conflict
+    return { hasConflict: false, remoteModified: null, localModified: null };
+  }
+}
+
+/**
+ * Get the remote version of a file for comparison.
+ */
+export async function getRemoteFileContent(
+  dir: string,
+  filepath: string,
+  credentials: GitCredentials
+): Promise<string | null> {
+  try {
+    await git.fetch({
+      fs,
+      http,
+      dir,
+      onAuth: createAuthCallback(credentials),
+    });
+
+    const branch = await git.currentBranch({ fs, dir });
+    if (!branch) return null;
+
+    const remoteRef = await git.resolveRef({ fs, dir, ref: `refs/remotes/origin/${branch}` });
+
+    const { blob } = await git.readBlob({
+      fs,
+      dir,
+      oid: remoteRef,
+      filepath,
+    });
+
+    return new TextDecoder().decode(blob);
+  } catch {
+    return null;
+  }
 }
