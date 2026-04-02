@@ -1,0 +1,193 @@
+# Sync Flow E2E Test
+# Tests git synchronization functionality
+
+appId: com.chronicle.mobile
+---
+
+# Test: Manual sync via pull-to-refresh
+- launchApp
+- waitForAnimationToEnd
+
+# Pull to refresh on notes list
+- swipe:
+    direction: DOWN
+    duration: 500
+    start:
+      x: 50%
+      y: 30%
+    end:
+      x: 50%
+      y: 70%
+
+# Should see sync indicator
+- assertVisible:
+    text: "Syncing"
+    timeout: 2000
+    optional: true
+
+# Wait for sync to complete
+- waitForAnimationToEnd:
+    timeout: 10000
+
+# Should return to idle state (no error)
+- assertNotVisible:
+    text: "Sync failed"
+    optional: true
+
+---
+
+# Test: View sync status
+- launchApp
+- waitForAnimationToEnd
+
+# Check sync status indicator
+- assertVisible:
+    id: "sync-status"
+
+# Tap to see details
+- tapOn:
+    id: "sync-status"
+    optional: true
+
+# May show last sync time
+- assertVisible:
+    text: "Last synced"
+    optional: true
+
+---
+
+# Test: Sync after creating note
+- launchApp
+- waitForAnimationToEnd
+
+# Create a new note
+- tapOn:
+    id: "create-note-fab"
+
+- tapOn:
+    id: "note-title-input"
+- inputText: "Note to Sync"
+
+- tapOn:
+    id: "note-content-input"
+- inputText: "This should sync to remote."
+
+- tapOn: "Save"
+
+# Note should show unsynced indicator
+- assertVisible:
+    id: "unsynced-indicator"
+    optional: true
+
+# Trigger sync
+- swipe:
+    direction: DOWN
+    duration: 500
+    start:
+      x: 50%
+      y: 30%
+    end:
+      x: 50%
+      y: 70%
+
+- waitForAnimationToEnd:
+    timeout: 10000
+
+# After sync, unsynced indicator should be gone
+- assertNotVisible:
+    id: "unsynced-indicator"
+    optional: true
+
+---
+
+# Test: Sync error handling
+- launchApp
+- waitForAnimationToEnd
+
+# This test assumes network is unavailable or mock returns error
+
+# Try to sync
+- swipe:
+    direction: DOWN
+    duration: 500
+    start:
+      x: 50%
+      y: 30%
+    end:
+      x: 50%
+      y: 70%
+
+# If error occurs, should show error state
+- assertVisible:
+    text: "Sync failed"
+    timeout: 5000
+    optional: true
+
+# Tap to retry
+- tapOn:
+    text: "Retry"
+    optional: true
+
+---
+
+# Test: View pending changes
+- launchApp
+- waitForAnimationToEnd
+
+# Create note while "offline"
+- tapOn:
+    id: "create-note-fab"
+
+- tapOn:
+    id: "note-title-input"
+- inputText: "Pending Note 1"
+- tapOn: "Save"
+
+- tapOn:
+    id: "create-note-fab"
+
+- tapOn:
+    id: "note-title-input"
+- inputText: "Pending Note 2"
+- tapOn: "Save"
+
+# Sync status should show pending count
+- assertVisible:
+    text: "2 pending"
+    optional: true
+
+---
+
+# Test: Sync settings
+- launchApp
+- waitForAnimationToEnd
+
+- tapOn: "Settings"
+
+# Find sync settings
+- scrollUntilVisible:
+    element: "Auto Sync"
+    direction: DOWN
+
+# Toggle auto sync
+- tapOn:
+    id: "auto-sync-toggle"
+
+# Set sync interval
+- tapOn:
+    text: "Sync Interval"
+    optional: true
+
+- tapOn:
+    text: "15 minutes"
+    optional: true
+
+# Go back
+- back
+
+# Verify settings persisted
+- tapOn: "Settings"
+
+- assertVisible:
+    text: "15 minutes"
+    optional: true

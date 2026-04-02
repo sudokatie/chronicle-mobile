@@ -13,9 +13,9 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useSyncStore } from '../../src/stores/sync';
 import { useSecurityStore } from '../../src/stores/security';
-import { getSetting, setSetting } from '../../src/services/storage';
+import { getSetting, setSetting, isEncryptionEnabled, setEncryptionEnabled } from '../../src/services/storage';
 import { clearCredentials } from '../../src/services/git';
-import { clearSecurityData } from '../../src/services/security';
+import { clearSecurityData, setLockTimeout, getLockTimeout } from '../../src/services/security';
 import { SyncStatus } from '../../src/components/SyncStatus';
 
 interface SettingRowProps {
@@ -41,6 +41,19 @@ export default function SettingsScreen(): React.ReactElement {
   const [autoSync, setAutoSync] = useState(true);
   const [vaultPath, setVaultPath] = useState<string>('');
   const [remoteUrl, setRemoteUrl] = useState<string>('');
+  const [lockTimeout, setLockTimeoutState] = useState<number>(60000);
+  const [encryptionOn, setEncryptionOn] = useState(false);
+
+  // Timeout options in milliseconds
+  const TIMEOUT_OPTIONS = [
+    { label: 'Immediately', value: 0 },
+    { label: '30 seconds', value: 30000 },
+    { label: '1 minute', value: 60000 },
+    { label: '5 minutes', value: 300000 },
+    { label: '15 minutes', value: 900000 },
+    { label: '30 minutes', value: 1800000 },
+    { label: 'Never', value: -1 },
+  ];
 
   const backgroundColor = isDark ? '#09090b' : '#f4f4f5';
   const cardBg = isDark ? '#18181b' : '#ffffff';
@@ -58,15 +71,76 @@ export default function SettingsScreen(): React.ReactElement {
     const autoSyncVal = await getSetting<boolean>('autoSync');
     const vaultPathVal = await getSetting<string>('vaultPath');
     const remoteUrlVal = await getSetting<string>('remoteUrl');
+    const timeoutVal = await getLockTimeout();
+    const encryptionVal = await isEncryptionEnabled();
 
     setAutoSync(autoSyncVal ?? true);
     setVaultPath(vaultPathVal || '');
     setRemoteUrl(remoteUrlVal || '');
+    setLockTimeoutState(timeoutVal);
+    setEncryptionOn(encryptionVal);
   };
 
   const handleAutoSyncToggle = async (value: boolean) => {
     setAutoSync(value);
     await setSetting('autoSync', value);
+  };
+
+  const handleLockTimeoutChange = () => {
+    Alert.alert(
+      'Auto-Lock Timeout',
+      'Lock the app after inactivity',
+      [
+        ...TIMEOUT_OPTIONS.map((opt) => ({
+          text: opt.label,
+          onPress: async () => {
+            setLockTimeoutState(opt.value);
+            await setLockTimeout(opt.value);
+          },
+        })),
+        { text: 'Cancel', style: 'cancel' },
+      ]
+    );
+  };
+
+  const getLockTimeoutLabel = (): string => {
+    const opt = TIMEOUT_OPTIONS.find((o) => o.value === lockTimeout);
+    return opt?.label || '1 minute';
+  };
+
+  const handleEncryptionToggle = async (value: boolean) => {
+    if (value) {
+      Alert.alert(
+        'Enable Encryption',
+        'This will encrypt sensitive data stored locally. Make sure you have a backup of your vault.',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Enable',
+            onPress: async () => {
+              await setEncryptionEnabled(true);
+              setEncryptionOn(true);
+            },
+          },
+        ]
+      );
+    } else {
+      Alert.alert(
+        'Disable Encryption',
+        'New data will be stored unencrypted. Existing encrypted data will remain encrypted.',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Disable',
+            style: 'destructive',
+            onPress: async () => {
+              await setEncryptionEnabled(false);
+              setEncryptionOn(false);
+            },
+          },
+        ]
+      );
+    }
   };
 
   const handleLockTypeChange = async () => {
@@ -209,6 +283,26 @@ export default function SettingsScreen(): React.ReactElement {
             title="App Lock"
             subtitle={getLockTypeLabel()}
             onPress={handleLockTypeChange}
+          />
+          {lockType !== 'none' && (
+            <SettingRow
+              icon="timer"
+              title="Auto-Lock Timeout"
+              subtitle={getLockTimeoutLabel()}
+              onPress={handleLockTimeoutChange}
+            />
+          )}
+          <SettingRow
+            icon="shield-checkmark"
+            title="Encrypt Local Data"
+            subtitle="Encrypt sensitive settings and credentials"
+            rightElement={
+              <Switch
+                value={encryptionOn}
+                onValueChange={handleEncryptionToggle}
+                trackColor={{ false: borderColor, true: accentColor }}
+              />
+            }
           />
         </View>
       </View>

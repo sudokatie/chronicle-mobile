@@ -1,0 +1,186 @@
+# Create Note Flow E2E Test
+# Tests note creation, editing, and viewing
+
+appId: com.chronicle.mobile
+---
+
+# Test: Create a new note
+- launchApp
+- waitForAnimationToEnd
+
+# Navigate to notes if not there
+- tapOn:
+    text: "Notes"
+    optional: true
+
+# Tap FAB to create new note
+- tapOn:
+    id: "create-note-fab"
+
+# Should see editor
+- assertVisible: "New Note"
+
+# Enter title
+- tapOn:
+    id: "note-title-input"
+- inputText: "My Test Note"
+
+# Enter content
+- tapOn:
+    id: "note-content-input"
+- inputText: "This is the content of my test note.\n\n## Section 1\n\nSome details here."
+
+# Save note
+- tapOn: "Save"
+
+# Should be back at note list
+- assertVisible: "My Test Note"
+
+---
+
+# Test: Edit existing note
+- launchApp
+- waitForAnimationToEnd
+
+# Find and tap on a note
+- tapOn: "My Test Note"
+
+# Should see note content
+- assertVisible: "This is the content"
+
+# Tap edit
+- tapOn:
+    id: "edit-button"
+
+# Modify content
+- tapOn:
+    id: "note-content-input"
+- clearText
+- inputText: "Updated content for my note.\n\n## New Section\n\nBrand new content."
+
+# Save
+- tapOn: "Save"
+
+# Verify update
+- assertVisible: "Updated content"
+
+---
+
+# Test: Create note with tags
+- launchApp
+- waitForAnimationToEnd
+
+- tapOn:
+    id: "create-note-fab"
+
+- tapOn:
+    id: "note-title-input"
+- inputText: "Tagged Note"
+
+- tapOn:
+    id: "note-content-input"
+- inputText: "This note has #project and #important tags."
+
+- tapOn: "Save"
+
+# Note should be created
+- assertVisible: "Tagged Note"
+
+---
+
+# Test: Create note with wiki links
+- launchApp
+- waitForAnimationToEnd
+
+- tapOn:
+    id: "create-note-fab"
+
+- tapOn:
+    id: "note-title-input"
+- inputText: "Linked Note"
+
+- tapOn:
+    id: "note-content-input"
+- inputText: "This links to [[My Test Note]] and [[Another Note]]."
+
+- tapOn: "Save"
+
+- assertVisible: "Linked Note"
+
+---
+
+# Test: Preview markdown
+- launchApp
+- waitForAnimationToEnd
+
+- tapOn:
+    id: "create-note-fab"
+
+- tapOn:
+    id: "note-content-input"
+- inputText: "# Heading\n\n**Bold** and *italic* text.\n\n- List item 1\n- List item 2"
+
+# Toggle preview
+- tapOn:
+    id: "preview-toggle"
+
+# Should see rendered markdown (heading without #)
+- assertVisible: "Heading"
+- assertNotVisible: "# Heading"
+
+# Toggle back to edit
+- tapOn:
+    id: "preview-toggle"
+
+# Should see raw markdown
+- assertVisible: "# Heading"
+
+---
+
+# Test: Discard unsaved changes
+- launchApp
+- waitForAnimationToEnd
+
+- tapOn:
+    id: "create-note-fab"
+
+- tapOn:
+    id: "note-title-input"
+- inputText: "Unsaved Note"
+
+# Go back without saving
+- back
+
+# Should see confirmation dialog
+- assertVisible: "Discard changes?"
+
+- tapOn: "Discard"
+
+# Should be at note list, note not visible
+- assertNotVisible: "Unsaved Note"
+
+---
+
+# Test: Create note in folder
+- launchApp
+- waitForAnimationToEnd
+
+- tapOn:
+    id: "create-note-fab"
+
+# Select folder
+- tapOn:
+    id: "folder-selector"
+    optional: true
+
+- tapOn:
+    text: "daily"
+    optional: true
+
+- tapOn:
+    id: "note-title-input"
+- inputText: "Daily Entry"
+
+- tapOn: "Save"
+
+- assertVisible: "Daily Entry"

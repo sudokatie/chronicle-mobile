@@ -1,0 +1,20 @@
+# Common helper commands for E2E tests
+
+# Wait for app to be ready
+- runFlow:
+    when:
+      visible: "Loading..."
+    commands:
+      - waitForAnimationToEnd
+
+# Helper: Navigate to Notes tab
+- runFlow:
+    file: navigate-to-notes.yaml
+    when:
+      visible: "Notes"
+
+# Helper: Navigate to Settings tab  
+- runFlow:
+    file: navigate-to-settings.yaml
+    when:
+      visible: "Settings"

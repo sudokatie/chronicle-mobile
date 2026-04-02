@@ -1,17 +1,24 @@
 import { create } from 'zustand';
-import { SyncState, SyncResult } from '../types';
+import { SyncState, SyncResult, NetworkState } from '../types';
 import * as syncService from '../services/sync';
 
 interface SyncStore {
   state: SyncState;
   lastSync: Date | null;
   pendingCount: number;
+  networkState: NetworkState;
+  isBackgroundSyncEnabled: boolean;
+  backgroundSyncInterval: number;
+  syncOnReconnect: boolean;
 
   // Actions
   startSync: () => Promise<SyncResult>;
   initialize: () => Promise<void>;
   addPending: (path: string, action: 'create' | 'update' | 'delete') => Promise<void>;
   clearError: () => void;
+  setBackgroundSync: (enabled: boolean, intervalMinutes?: number) => Promise<void>;
+  setSyncOnReconnect: (enabled: boolean) => Promise<void>;
+  isNetworkAvailable: () => boolean;
 }
 
 export const useSyncStore = create<SyncStore>((set, get) => ({
@@ -23,6 +30,14 @@ export const useSyncStore = create<SyncStore>((set, get) => ({
   },
   lastSync: null,
   pendingCount: 0,
+  networkState: {
+    isConnected: true,
+    isInternetReachable: true,
+    type: 'unknown',
+  },
+  isBackgroundSyncEnabled: false,
+  backgroundSyncInterval: 15,
+  syncOnReconnect: true,
 
   startSync: async () => {
     const result = await syncService.sync();
@@ -38,8 +53,10 @@ export const useSyncStore = create<SyncStore>((set, get) => ({
   initialize: async () => {
     await syncService.initSync();
     const state = syncService.getSyncState();
+    const networkState = syncService.getNetworkState();
+    const isBackgroundRegistered = await syncService.isBackgroundSyncRegistered();
 
-    // Subscribe to state changes
+    // Subscribe to sync state changes
     syncService.onSyncStateChange((newState) => {
       set({
         state: newState,
@@ -48,10 +65,17 @@ export const useSyncStore = create<SyncStore>((set, get) => ({
       });
     });
 
+    // Subscribe to network state changes
+    syncService.onNetworkStateChange((newNetworkState) => {
+      set({ networkState: newNetworkState });
+    });
+
     set({
       state,
       lastSync: state.lastSync,
       pendingCount: state.pendingChanges,
+      networkState,
+      isBackgroundSyncEnabled: isBackgroundRegistered,
     });
   },
 
@@ -65,5 +89,22 @@ export const useSyncStore = create<SyncStore>((set, get) => ({
     set((prev) => ({
       state: { ...prev.state, error: null },
     }));
+  },
+
+  setBackgroundSync: async (enabled: boolean, intervalMinutes?: number) => {
+    await syncService.updateBackgroundSyncSettings(enabled, intervalMinutes);
+    set({
+      isBackgroundSyncEnabled: enabled,
+      ...(intervalMinutes !== undefined && { backgroundSyncInterval: intervalMinutes }),
+    });
+  },
+
+  setSyncOnReconnect: async (enabled: boolean) => {
+    await syncService.updateSyncOnReconnect(enabled);
+    set({ syncOnReconnect: enabled });
+  },
+
+  isNetworkAvailable: () => {
+    return syncService.isNetworkAvailable();
   },
 }));

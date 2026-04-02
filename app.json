@@ -6,26 +6,94 @@
     "scheme": "chronicle-mobile",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
-    "userInterfaceStyle": "light",
+    "userInterfaceStyle": "automatic",
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
       "backgroundColor": "#ffffff"
     },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.chronicle.mobile",
+      "infoPlist": {
+        "NSMicrophoneUsageDescription": "Chronicle needs access to your microphone to record voice notes.",
+        "NSCameraUsageDescription": "Chronicle needs access to your camera to capture photos for notes.",
+        "NSPhotoLibraryUsageDescription": "Chronicle needs access to your photo library to attach images to notes.",
+        "NSPhotoLibraryAddUsageDescription": "Chronicle needs permission to save photos to your library."
+      },
+      "config": {
+        "usesNonExemptEncryption": false
+      }
     },
     "android": {
+      "package": "com.chronicle.mobile",
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/android-icon-foreground.png",
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
-      "predictiveBackGestureEnabled": false
+      "permissions": [
+        "android.permission.RECORD_AUDIO",
+        "android.permission.CAMERA",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE",
+        "android.permission.READ_MEDIA_IMAGES"
+      ],
+      "intentFilters": [
+        {
+          "action": "android.intent.action.SEND",
+          "category": ["android.intent.category.DEFAULT"],
+          "data": [
+            {
+              "mimeType": "text/plain"
+            }
+          ]
+        },
+        {
+          "action": "android.intent.action.SEND",
+          "category": ["android.intent.category.DEFAULT"],
+          "data": [
+            {
+              "mimeType": "image/*"
+            }
+          ]
+        },
+        {
+          "action": "android.intent.action.SEND_MULTIPLE",
+          "category": ["android.intent.category.DEFAULT"],
+          "data": [
+            {
+              "mimeType": "image/*"
+            }
+          ]
+        }
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Chronicle needs access to your photos to attach images to notes.",
+          "cameraPermission": "Chronicle needs access to your camera to capture photos for notes."
+        }
+      ],
+      [
+        "expo-av",
+        {
+          "microphonePermission": "Chronicle needs access to your microphone to record voice notes."
+        }
+      ],
+      "expo-secure-store",
+      "expo-sqlite"
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "chronicle-mobile"
+      }
     }
   }
 }

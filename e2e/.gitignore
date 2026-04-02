@@ -1,0 +1,6 @@
+# E2E test artifacts
+screenshots/
+*.png
+*.jpg
+report.xml
+test-results/

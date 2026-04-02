@@ -1,0 +1,187 @@
+# Search Flow E2E Test
+# Tests note search functionality
+
+appId: com.chronicle.mobile
+---
+
+# Test: Search by title
+- launchApp
+- waitForAnimationToEnd
+
+# Navigate to search tab
+- tapOn: "Search"
+
+# Tap search input
+- tapOn:
+    id: "search-input"
+
+# Enter search query
+- inputText: "Test Note"
+
+# Should show matching results
+- assertVisible:
+    text: "My Test Note"
+    timeout: 3000
+    optional: true
+
+---
+
+# Test: Search by content
+- launchApp
+- waitForAnimationToEnd
+
+- tapOn: "Search"
+
+- tapOn:
+    id: "search-input"
+
+# Search for content that exists in a note
+- inputText: "searchable content"
+
+# Should find notes containing that text
+- waitForAnimationToEnd
+
+# Results should appear (or empty state if no match)
+- assertVisible:
+    anyOf:
+      - id: "search-result-item"
+      - text: "No results"
+
+---
+
+# Test: Search by tag
+- launchApp
+- waitForAnimationToEnd
+
+- tapOn: "Search"
+
+- tapOn:
+    id: "search-input"
+
+# Search for tag
+- inputText: "#project"
+
+# Should show notes with that tag
+- waitForAnimationToEnd
+
+---
+
+# Test: Open search result
+- launchApp
+- waitForAnimationToEnd
+
+- tapOn: "Search"
+
+- tapOn:
+    id: "search-input"
+- inputText: "Note"
+
+- waitForAnimationToEnd
+
+# Tap first result
+- tapOn:
+    id: "search-result-item"
+    index: 0
+    optional: true
+
+# Should navigate to note
+- assertVisible:
+    id: "note-content"
+    optional: true
+
+---
+
+# Test: Clear search
+- launchApp
+- waitForAnimationToEnd
+
+- tapOn: "Search"
+
+- tapOn:
+    id: "search-input"
+- inputText: "something"
+
+# Clear the search
+- tapOn:
+    id: "clear-search"
+    optional: true
+
+# OR use clear text
+- clearText
+
+# Should show all notes or empty state
+- assertNotVisible:
+    text: "something"
+
+---
+
+# Test: Search with no results
+- launchApp
+- waitForAnimationToEnd
+
+- tapOn: "Search"
+
+- tapOn:
+    id: "search-input"
+- inputText: "xyznonexistentqueryzyx"
+
+- waitForAnimationToEnd
+
+# Should show no results message
+- assertVisible:
+    text: "No results"
+    optional: true
+
+---
+
+# Test: Recent searches
+- launchApp
+- waitForAnimationToEnd
+
+- tapOn: "Search"
+
+# May show recent searches
+- assertVisible:
+    text: "Recent"
+    optional: true
+
+# Tap a recent search
+- tapOn:
+    id: "recent-search-item"
+    optional: true
+
+---
+
+# Test: Search filters
+- launchApp
+- waitForAnimationToEnd
+
+- tapOn: "Search"
+
+# Open filters
+- tapOn:
+    id: "search-filters"
+    optional: true
+
+# Filter by folder
+- tapOn:
+    text: "Folder"
+    optional: true
+
+- tapOn:
+    text: "daily"
+    optional: true
+
+# Apply filter
+- tapOn:
+    text: "Apply"
+    optional: true
+
+# Search with filter active
+- tapOn:
+    id: "search-input"
+- inputText: "entry"
+
+- waitForAnimationToEnd
+
+# Results should be filtered

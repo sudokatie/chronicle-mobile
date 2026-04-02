@@ -1,0 +1,16 @@
+# Maestro E2E Test Configuration
+
+# App identifier
+appId: com.chronicle.mobile
+
+# Default timeout for operations (ms)
+timeout: 10000
+
+# Retry failed assertions
+retryCount: 3
+
+# Screenshot on failure
+screenshotOnFailure: true
+
+# Output directory for artifacts
+outputDir: ./e2e/screenshots

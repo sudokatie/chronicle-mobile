@@ -1,4 +1,4 @@
-import React, { useRef, useCallback } from 'react';
+import React, { useRef, useCallback, useEffect } from 'react';
 import {
   View,
   TextInput,
@@ -10,6 +10,9 @@ import {
   Platform,
   KeyboardAvoidingView,
 } from 'react-native';
+
+/** Debounce delay for auto-save (ms) */
+const SAVE_DEBOUNCE_MS = 500;
 
 interface NoteEditorProps {
   content: string;
@@ -27,6 +30,7 @@ interface ToolbarButton {
 /**
  * Markdown editor component with formatting toolbar.
  * Supports common markdown formatting shortcuts.
+ * Auto-saves with 500ms debounce on content changes.
  */
 export function NoteEditor({
   content,
@@ -38,6 +42,54 @@ export function NoteEditor({
   const isDark = colorScheme === 'dark';
   const inputRef = useRef<TextInput>(null);
   const selectionRef = useRef({ start: 0, end: 0 });
+  const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const pendingSaveRef = useRef(false);
+
+  // Debounced save function
+  const debouncedSave = useCallback(() => {
+    // Clear any pending save timeout
+    if (saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current);
+    }
+
+    // Mark that we have a pending save
+    pendingSaveRef.current = true;
+
+    // Schedule save after debounce delay
+    saveTimeoutRef.current = setTimeout(() => {
+      onSave();
+      pendingSaveRef.current = false;
+    }, SAVE_DEBOUNCE_MS);
+  }, [onSave]);
+
+  // Handle content changes with debounced save
+  const handleContentChange = useCallback((newContent: string) => {
+    onChange(newContent);
+    debouncedSave();
+  }, [onChange, debouncedSave]);
+
+  // Handle blur - save immediately if there's a pending save
+  const handleBlur = useCallback(() => {
+    if (saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current);
+      saveTimeoutRef.current = null;
+    }
+    if (pendingSaveRef.current) {
+      onSave();
+      pendingSaveRef.current = false;
+    }
+  }, [onSave]);
+
+  // Cleanup on unmount - save any pending changes
+  useEffect(() => {
+    return () => {
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current);
+      }
+      // Note: Can't call onSave here as component is unmounting
+      // The parent should handle saving on navigation
+    };
+  }, []);
 
   const updateSelection = useCallback((event: { nativeEvent: { selection: { start: number; end: number } } }) => {
     selectionRef.current = event.nativeEvent.selection;
@@ -51,7 +103,7 @@ export function NoteEditor({
       const after = content.slice(end);
 
       const newContent = `${before}${prefix}${selected}${suffix}${after}`;
-      onChange(newContent);
+      handleContentChange(newContent);
 
       // Move cursor after the inserted text
       setTimeout(() => {
@@ -63,7 +115,7 @@ export function NoteEditor({
         });
       }, 0);
     },
-    [content, onChange]
+    [content, handleContentChange]
   );
 
   const insertAtCursor = useCallback(
@@ -73,7 +125,7 @@ export function NoteEditor({
       const after = content.slice(end);
 
       const newContent = `${before}${text}${after}`;
-      onChange(newContent);
+      handleContentChange(newContent);
 
       setTimeout(() => {
         const newPos = start + text.length;
@@ -82,7 +134,7 @@ export function NoteEditor({
         });
       }, 0);
     },
-    [content, onChange]
+    [content, handleContentChange]
   );
 
   const insertLinePrefix = useCallback(
@@ -94,7 +146,7 @@ export function NoteEditor({
       const after = content.slice(lineStart);
 
       const newContent = `${before}${prefix}${after}`;
-      onChange(newContent);
+      handleContentChange(newContent);
 
       setTimeout(() => {
         const newPos = start + prefix.length;
@@ -103,7 +155,7 @@ export function NoteEditor({
         });
       }, 0);
     },
-    [content, onChange]
+    [content, handleContentChange]
   );
 
   const toolbarButtons: ToolbarButton[] = [
@@ -169,9 +221,9 @@ export function NoteEditor({
             },
           ]}
           value={content}
-          onChangeText={onChange}
+          onChangeText={handleContentChange}
           onSelectionChange={updateSelection}
-          onBlur={onSave}
+          onBlur={handleBlur}
           multiline
           textAlignVertical="top"
           placeholder="Start writing..."

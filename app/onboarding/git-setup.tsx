@@ -32,6 +32,7 @@ export default function GitSetupScreen(): React.ReactElement {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [progress, setProgress] = useState('');
+  const [progressPercent, setProgressPercent] = useState<number | null>(null);
 
   const backgroundColor = isDark ? '#09090b' : '#ffffff';
   const cardBg = isDark ? '#18181b' : '#f4f4f5';
@@ -52,6 +53,7 @@ export default function GitSetupScreen(): React.ReactElement {
 
     setLoading(true);
     setProgress('Connecting to repository...');
+    setProgressPercent(null);
 
     try {
       const vaultPath = `${Paths.document.uri}vault`;
@@ -61,12 +63,30 @@ export default function GitSetupScreen(): React.ReactElement {
       await setSetting('vaultPath', vaultPath);
 
       setProgress('Cloning repository...');
-      await cloneRepo(repoUrl.trim(), vaultPath, {
-        username: username.trim(),
-        password: password || undefined,
-      });
+
+      // Clone with progress callback
+      await cloneRepo(
+        repoUrl.trim(),
+        vaultPath,
+        {
+          username: username.trim(),
+          password: password || undefined,
+        },
+        (phase, loaded, total) => {
+          // Calculate percentage if total is known
+          if (total && total > 0) {
+            const percent = Math.round((loaded / total) * 100);
+            setProgressPercent(percent);
+            setProgress(`${phase}: ${percent}%`);
+          } else {
+            setProgressPercent(null);
+            setProgress(`${phase}: ${loaded} objects`);
+          }
+        }
+      );
 
       setProgress('Done!');
+      setProgressPercent(100);
       
       // Move to security setup
       router.push('/onboarding/security');
@@ -76,6 +96,7 @@ export default function GitSetupScreen(): React.ReactElement {
     } finally {
       setLoading(false);
       setProgress('');
+      setProgressPercent(null);
     }
   };
 
@@ -167,6 +188,16 @@ export default function GitSetupScreen(): React.ReactElement {
             <View style={styles.progressContainer}>
               <ActivityIndicator size="small" color={accentColor} />
               <Text style={[styles.progressText, { color: mutedColor }]}>{progress}</Text>
+              {progressPercent !== null && (
+                <View style={[styles.progressBar, { backgroundColor: borderColor }]}>
+                  <View
+                    style={[
+                      styles.progressFill,
+                      { backgroundColor: accentColor, width: `${progressPercent}%` },
+                    ]}
+                  />
+                </View>
+              )}
             </View>
           )}
 
@@ -261,7 +292,6 @@ const styles = StyleSheet.create({
     paddingBottom: 32,
   },
   progressContainer: {
-    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 16,
@@ -269,6 +299,16 @@ const styles = StyleSheet.create({
   },
   progressText: {
     fontSize: 14,
+  },
+  progressBar: {
+    width: '100%',
+    height: 6,
+    borderRadius: 3,
+    overflow: 'hidden',
+  },
+  progressFill: {
+    height: '100%',
+    borderRadius: 3,
   },
   button: {
     flexDirection: 'row',

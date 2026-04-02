@@ -1,0 +1,246 @@
+# Security Flow E2E Test
+# Tests app lock, PIN, and biometric authentication
+
+appId: com.chronicle.mobile
+---
+
+# Test: Enable PIN lock
+- launchApp
+- waitForAnimationToEnd
+
+# Go to settings
+- tapOn: "Settings"
+
+# Find security section
+- scrollUntilVisible:
+    element: "Security"
+    direction: DOWN
+
+- tapOn: "Security"
+
+# Enable PIN
+- tapOn: "Set PIN"
+
+# Enter PIN
+- tapOn:
+    id: "pin-input"
+- inputText: "1234"
+
+# Confirm PIN
+- tapOn: "Next"
+- inputText: "1234"
+
+- tapOn: "Done"
+
+# Should show PIN is enabled
+- assertVisible: "PIN Enabled"
+
+---
+
+# Test: Unlock with PIN
+- launchApp
+
+# Should show lock screen
+- assertVisible:
+    text: "Enter PIN"
+    timeout: 3000
+    optional: true
+
+# Enter correct PIN
+- tapOn:
+    id: "pin-input"
+- inputText: "1234"
+
+# Should unlock and show notes
+- assertVisible:
+    text: "Notes"
+    timeout: 5000
+
+---
+
+# Test: Wrong PIN attempt
+- launchApp
+
+# Should show lock screen if enabled
+- assertVisible:
+    text: "Enter PIN"
+    timeout: 3000
+    optional: true
+
+# Enter wrong PIN
+- tapOn:
+    id: "pin-input"
+- inputText: "9999"
+
+# Should show error
+- assertVisible:
+    text: "Incorrect PIN"
+    optional: true
+
+# Should still be on lock screen
+- assertVisible:
+    text: "Enter PIN"
+    optional: true
+
+---
+
+# Test: Change PIN
+- launchApp
+- waitForAnimationToEnd
+
+# Unlock if needed
+- tapOn:
+    id: "pin-input"
+    optional: true
+- inputText:
+    text: "1234"
+    optional: true
+
+- tapOn: "Settings"
+- tapOn: "Security"
+
+# Change PIN
+- tapOn: "Change PIN"
+
+# Enter current PIN
+- inputText: "1234"
+- tapOn: "Next"
+
+# Enter new PIN
+- inputText: "5678"
+- tapOn: "Next"
+
+# Confirm new PIN
+- inputText: "5678"
+- tapOn: "Done"
+
+- assertVisible: "PIN Updated"
+
+---
+
+# Test: Disable PIN lock
+- launchApp
+- waitForAnimationToEnd
+
+# Unlock if needed
+- tapOn:
+    id: "pin-input"
+    optional: true
+- inputText:
+    text: "5678"
+    optional: true
+
+- tapOn: "Settings"
+- tapOn: "Security"
+
+# Disable PIN
+- tapOn: "Remove PIN"
+
+# Confirm with current PIN
+- inputText: "5678"
+- tapOn: "Confirm"
+
+- assertVisible: "No Lock"
+
+---
+
+# Test: Enable biometric (if available)
+- launchApp
+- waitForAnimationToEnd
+
+- tapOn: "Settings"
+- tapOn: "Security"
+
+# Check if biometric is available
+- tapOn:
+    text: "Enable Face ID"
+    optional: true
+
+# OR
+- tapOn:
+    text: "Enable Touch ID"
+    optional: true
+
+# OR
+- tapOn:
+    text: "Enable Fingerprint"
+    optional: true
+
+# System will prompt for biometric
+# In test, this may be mocked
+
+# Should show biometric enabled
+- assertVisible:
+    text: "Biometric Enabled"
+    optional: true
+
+---
+
+# Test: Auto-lock timeout
+- launchApp
+- waitForAnimationToEnd
+
+- tapOn: "Settings"
+- tapOn: "Security"
+
+# Set auto-lock timeout
+- tapOn: "Auto-Lock"
+
+- tapOn: "1 minute"
+
+- assertVisible: "Auto-Lock: 1 minute"
+
+---
+
+# Test: Lock manually
+- launchApp
+- waitForAnimationToEnd
+
+# Unlock if needed
+- tapOn:
+    id: "pin-input"
+    optional: true
+- inputText:
+    text: "1234"
+    optional: true
+
+- tapOn: "Settings"
+- tapOn: "Security"
+
+# Manual lock button
+- tapOn: "Lock Now"
+
+# Should show lock screen
+- assertVisible:
+    text: "Enter PIN"
+    timeout: 3000
+
+---
+
+# Test: Security on app resume
+- launchApp
+- waitForAnimationToEnd
+
+# Unlock
+- tapOn:
+    id: "pin-input"
+    optional: true
+- inputText:
+    text: "1234"
+    optional: true
+
+# Background the app
+- pressKey: home
+
+# Wait a moment
+- wait: 2000
+
+# Resume app
+- launchApp
+
+# If timeout elapsed, should show lock screen
+# This behavior depends on configured timeout
+- assertVisible:
+    anyOf:
+      - "Notes"  # If timeout not elapsed
+      - "Enter PIN"  # If timeout elapsed

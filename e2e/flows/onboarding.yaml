@@ -1,0 +1,90 @@
+# Onboarding Flow E2E Test
+# Tests the initial app setup experience
+
+appId: com.chronicle.mobile
+---
+
+# Test: Complete onboarding flow
+- launchApp:
+    clearState: true
+
+# Welcome screen
+- assertVisible: "Welcome to Chronicle"
+- assertVisible: "Your notes, everywhere"
+- tapOn: "Get Started"
+
+# Git setup screen
+- assertVisible: "Connect Your Vault"
+- tapOn:
+    id: "remote-url-input"
+- inputText: "https://github.com/user/vault.git"
+
+- tapOn:
+    id: "username-input"
+- inputText: "testuser"
+
+- tapOn:
+    id: "password-input"
+- inputText: "testpassword"
+
+- tapOn: "Connect"
+
+# Wait for clone (mocked in test environment)
+- waitForAnimationToEnd
+- assertVisible:
+    text: "Connected"
+    optional: true
+
+# Security setup screen
+- assertVisible:
+    text: "Secure Your Notes"
+    optional: true
+    
+- tapOn:
+    text: "Skip for Now"
+    optional: true
+
+# Should arrive at main notes screen
+- assertVisible:
+    text: "Notes"
+    timeout: 15000
+
+---
+
+# Test: Onboarding with PIN setup
+- launchApp:
+    clearState: true
+    
+- tapOn: "Get Started"
+
+# Skip git setup for this test
+- tapOn:
+    text: "Skip"
+    optional: true
+
+# Security setup
+- tapOn: "Set PIN"
+
+- tapOn:
+    id: "pin-input"
+- inputText: "1234"
+
+- tapOn: "Confirm PIN"
+- inputText: "1234"
+
+- tapOn: "Done"
+
+# Should be at main screen with lock enabled
+- assertVisible: "Notes"
+
+---
+
+# Test: Onboarding cancellation
+- launchApp:
+    clearState: true
+
+- tapOn: "Get Started"
+- back
+
+# Should still be on welcome
+- assertVisible: "Welcome to Chronicle"

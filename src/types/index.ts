@@ -11,6 +11,27 @@ export interface Note {
   conflicted: boolean;
   folder?: string;
   tags?: string[];
+  attachments?: Attachment[];
+  preview?: string;
+}
+
+export interface Attachment {
+  id: string;
+  type: 'image' | 'audio' | 'file';
+  uri: string;
+  filename: string;
+  mimeType: string;
+  size?: number;
+  width?: number;
+  height?: number;
+  duration?: number; // For audio attachments, in seconds
+}
+
+export interface QuickCaptureData {
+  title: string;
+  content: string;
+  attachments: Attachment[];
+  voiceTranscript?: string;
 }
 
 export interface ParsedNote {
@@ -53,12 +74,23 @@ export interface Settings {
   lockType: 'none' | 'pin' | 'biometric';
   lockTimeout: number;
   onboarded: boolean;
+  backgroundSyncEnabled: boolean;
+  backgroundSyncInterval: number;
+  syncOnReconnect: boolean;
 }
 
 export interface GitCredentials {
   username: string;
+  /** Authentication type. Defaults to 'http' if not specified. */
+  authType?: 'http' | 'ssh';
+  /** Password or personal access token for HTTP auth. */
   password?: string;
+  /** Private key for SSH auth. */
   privateKey?: string;
+  /** Public key for SSH auth. */
+  publicKey?: string;
+  /** Passphrase for encrypted SSH keys. */
+  passphrase?: string;
 }
 
 export interface FileStatus {
@@ -95,4 +127,36 @@ export interface ConflictInfo {
   localContent: string;
   remoteContent: string;
   baseContent?: string;
+}
+
+export interface VoiceRecordingState {
+  isRecording: boolean;
+  isPaused: boolean;
+  duration: number;
+  uri?: string;
+}
+
+export interface ShareIntentData {
+  type: 'text' | 'url' | 'image' | 'file';
+  text?: string;
+  url?: string;
+  uri?: string;
+  mimeType?: string;
+}
+
+export interface BackgroundSyncConfig {
+  enabled: boolean;
+  intervalMinutes: number;
+}
+
+export interface NetworkState {
+  isConnected: boolean;
+  isInternetReachable: boolean | null;
+  type: string;
+}
+
+export interface ConflictState {
+  hasConflict: boolean;
+  remoteModified: Date | null;
+  localModified: Date | null;
 }
