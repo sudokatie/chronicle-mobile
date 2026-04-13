@@ -103,6 +103,7 @@ export async function listNotes(filter?: NoteFilter): Promise<Note[]> {
   async function scanDirectory(dirPath: string, folder: string = ''): Promise<void> {
     try {
       const entries = await FileSystem.readDirectoryAsync(dirPath);
+      if (!Array.isArray(entries)) return;
 
       for (const entry of entries) {
         const fullPath = `${dirPath}/${entry}`;
@@ -341,6 +342,7 @@ export async function getFolders(): Promise<string[]> {
   async function scanForFolders(dirPath: string, prefix: string = ''): Promise<void> {
     try {
       const entries = await FileSystem.readDirectoryAsync(dirPath);
+      if (!Array.isArray(entries)) return;
       for (const entry of entries) {
         const fullPath = `${dirPath}/${entry}`;
         const info = await FileSystem.getInfoAsync(fullPath);

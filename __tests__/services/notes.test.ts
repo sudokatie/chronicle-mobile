@@ -447,7 +447,7 @@ Content`);
         if (path === '/mock/vault') {
           return Promise.resolve(['projects']);
         }
-        if (path.includes('projects')) {
+        if (path === '/mock/vault/projects') {
           return Promise.resolve(['active', 'archived']);
         }
         return Promise.resolve([]);
