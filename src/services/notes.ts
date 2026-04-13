@@ -1,4 +1,5 @@
 import * as FileSystem from 'expo-file-system';
+import { Paths } from 'expo-file-system';
 import { Note, ParsedNote, NoteFilter } from '../types';
 import {
   getNoteCache,
@@ -15,7 +16,7 @@ import {
  */
 async function getVaultPath(): Promise<string> {
   const path = await getSetting<string>('vaultPath');
-  return path || `${FileSystem.documentDirectory}vault`;
+  return path || `${Paths.document.uri}vault`;
 }
 
 /**
@@ -107,6 +108,8 @@ export async function listNotes(filter?: NoteFilter): Promise<Note[]> {
         const fullPath = `${dirPath}/${entry}`;
         const info = await FileSystem.getInfoAsync(fullPath);
 
+        if (!info.exists) continue;
+
         if (info.isDirectory) {
           await scanDirectory(fullPath, folder ? `${folder}/${entry}` : entry);
         } else if (entry.endsWith('.md')) {
@@ -119,8 +122,8 @@ export async function listNotes(filter?: NoteFilter): Promise<Note[]> {
             path: relativePath,
             title: parsed.title,
             content,
-            created: new Date(info.modificationTime || Date.now()),
-            modified: new Date(info.modificationTime || Date.now()),
+            created: new Date(info.modificationTime ?? Date.now()),
+            modified: new Date(info.modificationTime ?? Date.now()),
             synced: true,
             conflicted: false,
             folder: folder || undefined,
@@ -204,8 +207,8 @@ export async function getNoteByPath(path: string): Promise<Note | null> {
       path,
       title: parsed.title,
       content,
-      created: new Date(info.modificationTime || Date.now()),
-      modified: new Date(info.modificationTime || Date.now()),
+      created: new Date(info.modificationTime ?? Date.now()),
+      modified: new Date(info.modificationTime ?? Date.now()),
       synced: true,
       conflicted: false,
       tags: parsed.tags,
@@ -354,4 +357,85 @@ export async function getFolders(): Promise<string[]> {
 
   await scanForFolders(vaultPath);
   return folders.sort();
+}
+
+/**
+ * Page size for paginated note listing.
+ */
+export const PAGE_SIZE = 20;
+
+/**
+ * List notes with pagination support.
+ */
+export async function listNotesPaginated(
+  offset: number = 0,
+  limit: number = PAGE_SIZE,
+  filter?: NoteFilter
+): Promise<{ notes: Note[]; hasMore: boolean; total: number }> {
+  const allNotes = await listNotes(filter);
+  const notes = allNotes.slice(offset, offset + limit);
+  return {
+    notes,
+    hasMore: offset + limit < allNotes.length,
+    total: allNotes.length,
+  };
+}
+
+/**
+ * Search notes with pagination support.
+ */
+export async function searchNotesPaginated(
+  query: string,
+  offset: number = 0,
+  limit: number = PAGE_SIZE
+): Promise<{ notes: Note[]; hasMore: boolean; total: number }> {
+  const allNotes = await searchNotes(query);
+  const notes = allNotes.slice(offset, offset + limit);
+  return {
+    notes,
+    hasMore: offset + limit < allNotes.length,
+    total: allNotes.length,
+  };
+}
+
+/**
+ * Archive a note by moving it to the archive folder.
+ */
+export async function archiveNote(id: string): Promise<void> {
+  const note = await getNote(id);
+  if (!note) return;
+
+  const vaultPath = await getVaultPath();
+  const archivePath = `${vaultPath}/.archive`;
+
+  // Ensure archive directory exists
+  const archiveInfo = await FileSystem.getInfoAsync(archivePath);
+  if (!archiveInfo.exists) {
+    await FileSystem.makeDirectoryAsync(archivePath, { intermediates: true });
+  }
+
+  // Move note to archive
+  const oldPath = `${vaultPath}/${note.path}`;
+  const filename = note.path.split('/').pop() || `${id}.md`;
+  const newPath = `${archivePath}/${filename}`;
+
+  await FileSystem.moveAsync({ from: oldPath, to: newPath });
+  await deleteNoteCache(id);
+  await addToSyncQueue(note.path, 'delete');
+  await addToSyncQueue(`.archive/${filename}`, 'create');
+}
+
+/**
+ * Refresh the note cache by re-scanning the vault.
+ */
+export async function refreshNoteCache(): Promise<void> {
+  const notes = await listNotes();
+  for (const note of notes) {
+    await setNoteCache(note.path, {
+      title: note.title,
+      preview: note.content.slice(0, 100),
+      modified: note.modified.getTime(),
+      synced: note.synced,
+    });
+  }
 }
